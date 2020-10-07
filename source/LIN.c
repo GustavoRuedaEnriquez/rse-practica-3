@@ -81,7 +81,7 @@ void lin_sm_master()
 uint8_t lin_start_master(uint8_t id) {
 	if(g_master_state == 4) {
 		g_master_state = 1;
-		uint8_t msg[] = "Vamo a iniciar\r\n";
+		uint8_t msg[] = "\r\nInicio de envio de datos\r\n";
 		g_id = id;
 		UART_WriteBlocking(TERM_UART, msg, sizeof(msg) - 1);
 		return 0;
@@ -101,7 +101,7 @@ void lin_state_wait_until_next_frame()
 		if(counter < g_master_len) {
 			counter++;
 		} else {
-			uint8_t msg[] = "\r\nSi se pudo\r\n";
+			uint8_t msg[] = "\r\nEnvio exitoso\r\n";
 			uint8_t checksum = 0;
 			for(uint8_t i = 0; i < g_master_len + 1; i++)
 			{

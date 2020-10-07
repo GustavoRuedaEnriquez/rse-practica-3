@@ -29,7 +29,7 @@ uint8_t * callback_3();
 /*******************************************************************************
  * Variables
  ******************************************************************************/
-uint8_t txbuff[]   = "Practica 3 - (bb)LIN\r\n";
+uint8_t txbuff[]   = "\r\nPractica 3 - LIN\r\n";
 uint8_t rxbuff[20];
 
 /*******************************************************************************
@@ -57,6 +57,7 @@ int main(void)
     while (1)
     {
     	if(lin_start_master(slaves_table[i].ID) == 0) {
+    	//if(lin_start_master(0x38) == 0) {
     		i = (i + 1) % NUM_SLAVES;
     	}
     	lin_sm_master(g_master_state);

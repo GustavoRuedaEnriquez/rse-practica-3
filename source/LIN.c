@@ -141,6 +141,21 @@ void lin_send_protected_identifier(uint8_t id)
 {
 	uint8_t identifier = id;
 	g_master_len = identifier >> 4;
+	switch(g_master_len) {
+	case 0:
+			g_master_len = 2;
+			break;
+	case 1:
+			g_master_len = 2;
+			break;
+	case 2:
+			g_master_len = 4;
+			break;
+	case 3:
+			g_master_len = 8;
+			break;
+	}
+
 	uint8_t p0 = (identifier && 0x1) ^ ((identifier>>1) && 0x1) ^ ((identifier>>2) && 0x1) ^ ((identifier>>4) && 0x1);
 	uint8_t p1 = ~(((identifier>>1) && 0x1) ^ ((identifier>>3) && 0x1) ^ ((identifier>>4) && 0x1) ^ ((identifier>>5) && 0x1));
 	identifier = (p0 << 6) | (p1<<7) | identifier;
@@ -191,6 +206,21 @@ void lin_state_slave_handler()
 	uint8_t id = g_identifier_passed & 0x3F;
 	g_slave_len = ( id >> 4 ) & 0x3;
 
+	switch(g_slave_len) {
+	case 0:
+			g_slave_len = 2;
+			break;
+	case 1:
+			g_slave_len = 2;
+			break;
+	case 2:
+			g_slave_len = 4;
+			break;
+	case 3:
+			g_slave_len = 8;
+			break;
+	}
+
 	uint8_t p0 = (g_identifier_passed && 0x1) ^ ((g_identifier_passed>>1) && 0x1) ^ ((g_identifier_passed>>2) && 0x1) ^ ((g_identifier_passed>>4) && 0x1);
 	uint8_t p1 = ~(((g_identifier_passed>>1) && 0x1) ^ ((g_identifier_passed>>3) && 0x1) ^ ((g_identifier_passed>>4) && 0x1) ^ ((g_identifier_passed>>5) && 0x1));
 
@@ -225,7 +255,7 @@ void lin_send_response(uint8_t length)
 {
 	static uint8_t counter = 0;
 	g_flag = 1;
-	if(counter < 2) {
+	if(counter < length) {
 		UART_WriteBlocking(LIN_UART_SLAVE, &g_result[counter], 1);
 		counter++;
 	} else {

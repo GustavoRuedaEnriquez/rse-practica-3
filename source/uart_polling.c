@@ -43,9 +43,9 @@ int main(void)
 {
 
     SlaveIdHandler slaves_table[NUM_SLAVES] = {
-    		{0x23,callback_1},
-			{0x24,callback_2},
-			{0x25,callback_3}
+    		{0x33,callback_1},
+			{0x34,callback_2},
+			{0x35,callback_3}
     };
 
     lin_init_uart(slaves_table, NUM_SLAVES);
@@ -67,16 +67,16 @@ int main(void)
 
 uint8_t * callback_1()
 {
-	static uint8_t r[] = "C1";
+	static uint8_t r[] = "C123C123";
 	return r;
 }
 
 uint8_t * callback_2(){
-	static uint8_t r[] = "C2";
+	static uint8_t r[] = "C234C234";
 	return r;
 }
 
 uint8_t * callback_3(){
-	static uint8_t r[] = "C3";
+	static uint8_t r[] = "C356C356";
 	return r;
 }

@@ -21,6 +21,7 @@
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
+
 uint8_t * callback_1();
 uint8_t * callback_2();
 uint8_t * callback_3();
@@ -28,9 +29,7 @@ uint8_t * callback_3();
 /*******************************************************************************
  * Variables
  ******************************************************************************/
-
-
-uint8_t txbuff[]   = "Eart polling example\r\nBoard will send back received characters\r\n";
+uint8_t txbuff[]   = "Practica 3 - (bb)LIN\r\n";
 uint8_t rxbuff[20];
 
 /*******************************************************************************
@@ -54,20 +53,14 @@ int main(void)
 
     UART_WriteBlocking(UART0, txbuff, sizeof(txbuff) - 1);
 
-    int i = 0;
-    while(txbuff[i] != '\0') {
-    	UART_WriteBlocking(UART1, &txbuff[i], 1);
-    	UART_ReadBlocking(UART2, &rxbuff[i], 1);
-    	i++;
-    }
-
-
-
+    uint8_t  i = 0;
     while (1)
     {
-//    	sm_master(g_state);
-    	//UART_ReadBlocking(DEMO_UART, &ch, 1);
-        //UART_WriteBlocking(DEMO_UART, &ch, 1);
+    	if(lin_start_master(slaves_table[i].ID) == 0) {
+    		i = (i + 1) % NUM_SLAVES;
+    	}
+    	lin_sm_master(g_master_state);
+    	lin_sm_slave(g_slave_state);
     }
 }
 

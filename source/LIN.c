@@ -5,13 +5,17 @@
 #include "LIN.h"
 
 /* UART instance and clock */
-#define TERM_UART UART0
+#define TERM_UART          UART0
 #define TERM_UART_CLKSRC   UART0_CLK_SRC
 #define TERM_UART_CLK_FREQ CLOCK_GetFreq(UART0_CLK_SRC)
 
-#define LIN_UART  UART1
-#define LIN_UART_CLKSRC   UART1_CLK_SRC
-#define LIN_UART_CLK_FREQ CLOCK_GetFreq(UART1_CLK_SRC)
+#define LIN_UART_MASTER          UART1
+#define LIN_UART_MASTER_CLKSRC   UART1_CLK_SRC
+#define LIN_UART_MASTER_CLK_FREQ CLOCK_GetFreq(UART1_CLK_SRC)
+
+#define LIN_UART_SLAVE          UART2
+#define LIN_UART_SLAVE_CLKSRC   UART2_CLK_SRC
+#define LIN_UART_SLAVE_CLK_FREQ CLOCK_GetFreq(UART2_CLK_SRC)
 
 uint8_t g_channel;
 uint8_t g_master_state = 1;
@@ -27,10 +31,9 @@ uint8_t *g_result = 0;
 uint8_t g_identifier_passed = 0;
 
 SlaveIdHandler *g_slaves_table;
-
 uint8_t g_slaves_number = 0;
 
-void init_uart(SlaveIdHandler *table, uint8_t slaves_number)
+void lin_init_uart(SlaveIdHandler *table, uint8_t slaves_number)
 {
 	uart_config_t config;
 
@@ -42,13 +45,15 @@ void init_uart(SlaveIdHandler *table, uint8_t slaves_number)
 	config.enableTx     = true;
 	config.enableRx     = true;
 
-	UART_Init(LIN_UART, &config, TERM_UART_CLK_FREQ);
+	UART_Init(LIN_UART_MASTER, &config, LIN_UART_MASTER_CLK_FREQ);
+	UART_Init(LIN_UART_SLAVE, &config, LIN_UART_SLAVE_CLK_FREQ);
+	UART_Init(TERM_UART, &config, TERM_UART_CLK_FREQ);
 
 	g_slaves_table = table;
 	g_slaves_number = slaves_number;
 }
 
-// MASTER
+// Master
 void sm_master(uint8_t state)
 {
 	switch(state)
@@ -76,9 +81,10 @@ void sm_master(uint8_t state)
 void lin_state_wait_until_next_frame()
 {
 	uint8_t rxbuff[g_master_len];
+	//checar checksum
 	for(uint8_t i = 0; i < g_master_len; i++)
 	{
-		rxbuff[i] = UART_ReadBlocking(LIN_UART, &g_channel, 1);
+		rxbuff[i] = UART_ReadBlocking(LIN_UART_MASTER, &g_channel, 1);
 		UART_WriteBlocking(TERM_UART, rxbuff, sizeof(rxbuff) - 1);
 	}
 }
@@ -86,14 +92,14 @@ void lin_state_wait_until_next_frame()
 void lin_state_send_break()
 {
 	uint8_t synch_break[] = {0, 0x80};
-	UART_WriteBlocking(LIN_UART, synch_break, sizeof(synch_break) - 1);
-	UART_WriteBlocking(LIN_UART, synch_break, sizeof(synch_break) - 1);
+	UART_WriteBlocking(LIN_UART_MASTER, synch_break, sizeof(synch_break) - 1);
+	UART_WriteBlocking(LIN_UART_MASTER, synch_break, sizeof(synch_break) - 1);
 }
 
 void lin_state_send_synch()
 {
 	uint8_t synch = 0x55;
-	UART_WriteBlocking(LIN_UART, &synch, sizeof(synch) - 1);
+	UART_WriteBlocking(LIN_UART_MASTER, &synch, sizeof(synch) - 1);
 }
 
 void lin_send_protected_identifier(uint8_t id, uint8_t len)
@@ -102,7 +108,7 @@ void lin_send_protected_identifier(uint8_t id, uint8_t len)
 	uint8_t p0 = (identifier && 0x1) ^ ((identifier>>1) && 0x1) ^ ((identifier>>2) && 0x1) ^ ((identifier>>4) && 0x1);
 	uint8_t p1 = ~(((identifier>>1) && 0x1) ^ ((identifier>>3) && 0x1) ^ ((identifier>>4) && 0x1) ^ ((identifier>>5) && 0x1));
 	identifier = (p0 << 6) | (p1<<7) | identifier;
-	UART_WriteBlocking(LIN_UART, &identifier, sizeof(identifier) - 1);
+	UART_WriteBlocking(LIN_UART_MASTER, &identifier, sizeof(identifier) - 1);
 }
 
 
@@ -116,7 +122,7 @@ void lin_sm_slave(uint8_t state)
 			g_slave_state++;
 			break;
 		case 1 :
-			lin_stat_slave_handler();
+			lin_state_slave_handler();
 			break;
 		case 2 :
 			lin_send_response(g_slave_len);
@@ -130,7 +136,7 @@ void lin_state_wait_header()
 	uint8_t rxbuff[3] = {0};
 	for(uint8_t i = 0; i < 3; i++)
 	{
-		rxbuff[i] = UART_ReadBlocking(LIN_UART, &g_channel, 1);
+		rxbuff[i] = UART_ReadBlocking(LIN_UART_SLAVE, &g_channel, 1);
 		UART_WriteBlocking(TERM_UART, rxbuff, sizeof(rxbuff) - 1);
 	}
 	g_identifier_passed = rxbuff[2];
@@ -146,14 +152,16 @@ void lin_state_slave_handler()
 	uint8_t p0 = (g_identifier_passed && 0x1) ^ ((g_identifier_passed>>1) && 0x1) ^ ((g_identifier_passed>>2) && 0x1) ^ ((g_identifier_passed>>4) && 0x1);
 	uint8_t p1 = ~(((g_identifier_passed>>1) && 0x1) ^ ((g_identifier_passed>>3) && 0x1) ^ ((g_identifier_passed>>4) && 0x1) ^ ((g_identifier_passed>>5) && 0x1));
 
-	if(( p0 == (g_identifier_passed >> 6) & 0x1) && (p1 == g_identifier_passed >> 7) )
+	if( ( p0 == ((g_identifier_passed >> 6) & 0x1)) && (p1 == g_identifier_passed >> 7) )
 	{
 		for(uint8_t i = 0; i < g_slaves_number; i++)
 		{
 			if(id == g_slaves_table[i].ID)
 			{
-				g_result = g_slaves_table[i].Clbk();
-				g_slave_state++;
+				if(NULL != g_slaves_table[i].Clbk) {
+					g_result = g_slaves_table[i].Clbk();
+					g_slave_state++;
+				}
 			}
 		}
 	} else {
@@ -165,7 +173,7 @@ void lin_state_slave_handler()
 void lin_send_response(uint8_t length)
 {
 
-	UART_WriteBlocking(LIN_UART, g_result, length - 1);
+	UART_WriteBlocking(LIN_UART_SLAVE, g_result, length - 1);
 
 	uint8_t checksum = 0;
 
@@ -176,10 +184,5 @@ void lin_send_response(uint8_t length)
 
 	checksum = ~(checksum);
 
-	UART_WriteBlocking(LIN_UART, checksum, sizeof(checksum) - 1);
-}
-
-uint8_t * dummy_callback(uint8_t length)
-{
-	return g_sample_data;
+	UART_WriteBlocking(LIN_UART_SLAVE, &checksum, sizeof(checksum) - 1);
 }

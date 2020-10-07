@@ -16,23 +16,22 @@
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
-/* UART instance and clock */
-#define DEMO_UART          UART0
-#define DEMO_UART_CLKSRC   UART0_CLK_SRC
-#define DEMO_UART_CLK_FREQ CLOCK_GetFreq(UART0_CLK_SRC)
-
+#define NUM_SLAVES 3
 
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
+uint8_t * callback_1();
+uint8_t * callback_2();
+uint8_t * callback_3();
 
 /*******************************************************************************
  * Variables
  ******************************************************************************/
 
 
-uint8_t txbuff[]   = "Uart polling example\r\nBoard will send back received characters\r\n";
-uint8_t rxbuff[20] = {0};
+uint8_t txbuff[]   = "Eart polling example\r\nBoard will send back received characters\r\n";
+uint8_t rxbuff[20];
 
 /*******************************************************************************
  * Code
@@ -43,11 +42,26 @@ uint8_t rxbuff[20] = {0};
  */
 int main(void)
 {
-    uint8_t ch;
 
-    init_uart();
+    SlaveIdHandler slaves_table[NUM_SLAVES] = {
+    		{0x23,callback_1},
+			{0x24,callback_2},
+			{0x25,callback_3}
+    };
 
-    //UART_WriteBlocking(DEMO_UART, txbuff, sizeof(txbuff) - 1);
+    lin_init_uart(slaves_table, NUM_SLAVES);
+
+
+    UART_WriteBlocking(UART0, txbuff, sizeof(txbuff) - 1);
+
+    int i = 0;
+    while(txbuff[i] != '\0') {
+    	UART_WriteBlocking(UART1, &txbuff[i], 1);
+    	UART_ReadBlocking(UART2, &rxbuff[i], 1);
+    	i++;
+    }
+
+
 
     while (1)
     {
@@ -55,4 +69,20 @@ int main(void)
     	//UART_ReadBlocking(DEMO_UART, &ch, 1);
         //UART_WriteBlocking(DEMO_UART, &ch, 1);
     }
+}
+
+uint8_t * callback_1()
+{
+	static uint8_t r[] = "C1";
+	return r;
+}
+
+uint8_t * callback_2(){
+	static uint8_t r[] = "C2";
+	return r;
+}
+
+uint8_t * callback_3(){
+	static uint8_t r[] = "C3";
+	return r;
 }

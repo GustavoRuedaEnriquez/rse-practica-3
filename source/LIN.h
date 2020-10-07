@@ -5,10 +5,10 @@
 
 typedef struct {
    uint8_t ID;
-   uint8_t (*Clbk)(void);
+   uint8_t * (*Clbk)(void);
 } SlaveIdHandler;
 
-void lin_init_uart();
+void lin_init_uart(SlaveIdHandler *table, uint8_t slaves_number);
 
 // Master stuff
 void lin_sm_master(uint8_t state);

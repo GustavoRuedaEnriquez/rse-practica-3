@@ -63,7 +63,6 @@ void lin_sm_master()
 		break;
 	case 1 :
 		lin_state_send_break();
-		g_master_state++;
 		break;
 	case 2 :
 		lin_state_send_synch();
@@ -119,9 +118,17 @@ void lin_state_wait_until_next_frame()
 
 void lin_state_send_break()
 {
-	uint8_t synch_break = 0x80;
+	static uint8_t counter = 0;
+	uint8_t synch_break[] = {0x00, 0x80};
 	g_flag = 1;
-	UART_WriteBlocking(LIN_UART_MASTER, &synch_break, 1);
+	UART_WriteBlocking(LIN_UART_MASTER, &synch_break[counter], 1);
+	if(counter < 1) {
+		counter++;
+	} else {
+		counter = 0;
+		g_master_state++;
+	}
+
 }
 
 void lin_state_send_synch()
@@ -161,15 +168,15 @@ void lin_sm_slave()
 void lin_state_wait_header()
 {
 	static uint8_t counter = 0;
-	static uint8_t rx_buff[3];
+	static uint8_t rx_buff[4];
 
 	if(g_flag == 1) {
 		UART_ReadBlocking(LIN_UART_SLAVE, &rx_buff[counter], 1);
 		UART_WriteBlocking(TERM_UART, &rx_buff[counter], 1);
-		if(counter < 2) {
+		if(counter < 3) {
 			counter++;
 		} else {
-			g_identifier_passed = rx_buff[2];
+			g_identifier_passed = rx_buff[3];
 			g_slave_state++;
 			g_flag = 0;
 			counter = 0;

@@ -101,10 +101,12 @@ void lin_state_wait_until_next_frame()
 			counter++;
 		} else {
 			uint8_t msg[] = "\r\nEnvio exitoso\r\n";
-			uint8_t checksum = 0;
+			uint16_t checksum = 0;
 			for(uint8_t i = 0; i < g_master_len + 1; i++)
 			{
 				checksum += rx_buff[i];
+				checksum += checksum >> 8;
+				checksum = checksum & ~(0x100);
 			}
 			if(checksum == 0xFF) {
 				UART_WriteBlocking(TERM_UART, msg, sizeof(msg) - 1);
@@ -259,13 +261,16 @@ void lin_send_response(uint8_t length)
 		UART_WriteBlocking(LIN_UART_SLAVE, &g_result[counter], 1);
 		counter++;
 	} else {
-		uint8_t checksum = 0;
+		uint16_t checksum = 0;
 		for(uint8_t i = 0; i < length; i++)
 		{
 			checksum += g_result[i];
+			checksum += checksum >> 8;
+			checksum = checksum & ~(0x100);
 		}
 		checksum = ~(checksum);
-		UART_WriteBlocking(LIN_UART_SLAVE, &checksum, 1);
+		uint8_t t = checksum;
+		UART_WriteBlocking(LIN_UART_SLAVE, &t, 1);
 		counter = 0;
 		g_slave_state = 0;
 	}

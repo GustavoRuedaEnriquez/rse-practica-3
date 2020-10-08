@@ -29,5 +29,4 @@ void lin_state_wait_header();
 void lin_state_slave_handler();
 void lin_send_response(uint8_t length);
 
-uint8_t * dummy_callback(uint8_t length);
 #endif /* LIN_H_ */
